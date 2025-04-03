@@ -10,7 +10,10 @@ authors = [
 dynamic = ["version"]
 description = "This is a Python Project Template"
 # Add here the production dependencies
-dependencies = []
+dependencies = [
+    "flask",
+    "requests",
+]
 
 [project.optional-dependencies]
 dev = [
