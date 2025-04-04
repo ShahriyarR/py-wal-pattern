@@ -1,4 +1,4 @@
-import pickle  # nosec
+import json
 import socket
 from typing import Any
 
@@ -70,7 +70,7 @@ class KVClient:
 
         # Prepare command
         command_data = {"command": command, **kwargs}
-        serialized = pickle.dumps(command_data)  # nosec
+        serialized = json.dumps(command_data).encode("utf-8")
 
         # Send command length and data
         self.socket.sendall(len(serialized).to_bytes(4, byteorder="big"))
@@ -97,7 +97,7 @@ class KVClient:
             raise ConnectionError("Incomplete data received from server")
 
         # Deserialize response
-        return pickle.loads(data)  # nosec
+        return json.loads(data.decode("utf-8"))
 
     def get(self, key: str) -> Any:
         """

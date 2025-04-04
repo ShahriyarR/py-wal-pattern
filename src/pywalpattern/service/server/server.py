@@ -1,5 +1,5 @@
 import contextlib
-import pickle  # nosec
+import json
 import socket
 import threading
 from typing import Any
@@ -113,11 +113,11 @@ class KVServer:
 
                 # Process command
                 try:
-                    command_data = pickle.loads(data)  # nosec
+                    command_data = json.loads(data.decode("utf-8"))
                     response = self.process_command(command_data)
 
                     # Serialize response
-                    response_data = pickle.dumps(response)  # nosec
+                    response_data = json.dumps(response).encode("utf-8")
                     response_length = len(response_data)
 
                     # Send response length and data
@@ -131,7 +131,7 @@ class KVServer:
                 except Exception as e:
                     print(f"Error processing command: {e}")
                     error_response = {"status": Response.ERROR, "message": str(e)}
-                    response_data = pickle.dumps(error_response)
+                    response_data = json.dumps(error_response).encode("utf-8")
                     response_length = len(response_data)
                     client_socket.sendall(response_length.to_bytes(4, byteorder="big"))
                     client_socket.sendall(response_data)

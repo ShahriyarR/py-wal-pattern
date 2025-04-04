@@ -102,7 +102,7 @@ class KeyValueStore:
             # Write current state to a snapshot file
             snapshot_path = os.path.join(self.data_dir, "snapshot.json")
             with open(snapshot_path, "w") as f:
-                json.dump({k: v for k, v in self.data.items() if isinstance(v, (str, int, float, bool, list, dict))}, f)
+                json.dump(self.data, f)
 
             # Close current WAL file
             self.wal.close()

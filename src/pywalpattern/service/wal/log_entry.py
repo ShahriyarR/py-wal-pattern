@@ -1,4 +1,4 @@
-import pickle  # nosec
+import json
 import time
 from typing import Any
 
@@ -33,24 +33,36 @@ class LogEntry:
         self.value = value
         self.timestamp = time.time()
 
-    def serialize(self) -> bytes:
-        """
-        Serializes the log entry into bytes.
+    def to_dict(self) -> dict:
+        """Convert LogEntry to a dictionary for JSON serialization"""
+        return {
+            "seq_num": self.seq_num,
+            "op_type": self.op_type.value,  # Store enum as integer
+            "key": self.key,
+            "value": self.value,
+            "timestamp": self.timestamp,
+        }
 
-        Returns:
-            bytes: The serialized log entry.
-        """
-        return pickle.dumps(self)
+    @staticmethod
+    def from_dict(data: dict) -> "LogEntry":
+        """Create LogEntry from a dictionary"""
+        return LogEntry(
+            seq_num=data["seq_num"],
+            op_type=OperationType(data["op_type"]),  # Convert integer back to enum
+            key=data["key"],
+            value=data.get("value"),
+            # Timestamp will be overwritten, but we can restore it if needed
+        )
+
+    def serialize(self) -> bytes:
+        """Serialize entry to JSON bytes"""
+        return json.dumps(self.to_dict()).encode("utf-8")
 
     @staticmethod
     def deserialize(data: bytes) -> "LogEntry":
-        """
-        Deserializes bytes back into a LogEntry object.
-
-        Args:
-            data (bytes): The bytes to deserialize.
-
-        Returns:
-            LogEntry: The deserialized log entry object.
-        """
-        return pickle.loads(data)  # nosec
+        """Deserialize bytes to LogEntry"""
+        entry_dict = json.loads(data.decode("utf-8"))
+        entry = LogEntry.from_dict(entry_dict)
+        # Restore the original timestamp
+        entry.timestamp = entry_dict.get("timestamp", time.time())
+        return entry
