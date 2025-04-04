@@ -1,13 +1,19 @@
 default_language_version:
   python: python3.12
 
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
 
 repos:
   - repo: https://github.com/MarcoGorelli/absolufy-imports
     rev: v0.3.1
     hooks:
         - id: absolufy-imports
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
   - repo: local
     hooks:
       - id: lint
@@ -27,4 +33,16 @@ repos:
         entry: make type-check
         language: system
         types: [python]
+        pass_filenames: false
+      - id: gitleaks
+        name: gitleaks
+        entry: make gitleaks
+        language: system
+        types: [ python ]
+        pass_filenames: false
+      - id: pyupgrade
+        name: pyupgrade
+        entry: make pyupgrade
+        language: system
+        types: [ python ]
         pass_filenames: false

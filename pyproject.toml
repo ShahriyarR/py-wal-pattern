@@ -29,6 +29,7 @@ dev = [
     "pre-commit",
     "safety",
     "pip-audit",
+    "pyupgrade",
 ]
 test = [
     "pytest",

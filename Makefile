@@ -1,9 +1,11 @@
 ifdef OS
 	PYTHON ?= .venv/Scripts/python.exe
-	TYPE_CHECK_COMMAND ?= echo Pytype package doesn't support Windows OS
+	COG_CHECK_COMMAND ?= @echo "Cog checks are not supported in Windows OS"
+	GITLEAKS_COMMAND ?= @echo "Gitleaks is not support in Windows OS"
 else
 	PYTHON ?= .venv/bin/python
-	TYPE_CHECK_COMMAND ?= ${PYTHON} -m pytype --config=pytype.cfg src
+	COG_CHECK_COMMAND ?= cog check -l -i
+	GITLEAKS_COMMAND ?= gitleaks detect
 endif
 
 SETTINGS_FILENAME = pyproject.toml
@@ -66,5 +68,11 @@ test-slow:
 test-integration:
 	${PYTHON} -m pytest -svvv -m "integration" tests
 
+pyupgrade:
+	${PYTHON} -m pyupgrade `find src -name "*.py" -type f` --py312-plus --exit-zero-even-if-changed
+
 run:
 	${PYTHON} -m src.pytemplate.main
+
+gitleaks:
+	${GITLEAKS_COMMAND}
