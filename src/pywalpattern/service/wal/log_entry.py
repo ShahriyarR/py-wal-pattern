@@ -16,9 +16,13 @@ class LogEntry:
         key (str): The key associated with the log entry.
         value (Any, optional): The value associated with the log entry (default is None).
         timestamp (float): The timestamp when the log entry was created.
+        checksum (int): The CRC checksum of the log entry.
+        format_version (int): The format version of the log entry.
     """
 
-    def __init__(self, seq_num: int, op_type: OperationType, key: str, value: Any = None):
+    CURRENT_FORMAT_VERSION = 1
+
+    def __init__(self, seq_num: int, op_type: OperationType, key: str, value: Any = None, format_version: int = CURRENT_FORMAT_VERSION):
         """
         Constructs all the necessary attributes for the LogEntry object.
 
@@ -27,8 +31,7 @@ class LogEntry:
             op_type (OperationType): The type of operation (e.g., INSERT, UPDATE, DELETE).
             key (str): The key associated with the log entry.
             value (Any, optional): The value associated with the log entry (default is None).
-            timestamp (float): The timestamp when the log entry was created.
-            checksum (int): The CRC checksum of the log entry.
+            format_version (int): The format version of the log entry (default is CURRENT_FORMAT_VERSION).
         """
         self.seq_num = seq_num
         self.op_type = op_type
@@ -36,6 +39,7 @@ class LogEntry:
         self.value = value
         self.timestamp = time.time()
         self.checksum = self.calculate_checksum()
+        self.format_version = format_version
 
     def calculate_checksum(self) -> int:
         """Calculate the CRC checksum of the log entry."""
@@ -51,16 +55,20 @@ class LogEntry:
             "value": self.value,
             "timestamp": self.timestamp,
             "checksum": self.checksum,
+            "format_version": self.format_version,
         }
 
     @staticmethod
     def from_dict(data: dict) -> "LogEntry":
         """Create LogEntry from a dictionary"""
+        format_version = data.get("format_version", LogEntry.CURRENT_FORMAT_VERSION)
+
         entry = LogEntry(
             seq_num=data["seq_num"],
             op_type=OperationType(data["op_type"]),  # Convert integer back to enum
             key=data["key"],
             value=data.get("value"),
+            format_version=format_version,
         )
         entry.timestamp = data["timestamp"]
         entry.checksum = data.get("checksum", entry.calculate_checksum())  # Use default if missing
