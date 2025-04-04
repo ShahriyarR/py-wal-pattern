@@ -3,7 +3,8 @@ import time
 import zlib
 from typing import Any
 
-from pywalpattern.domain.models import OperationType
+from pywalpattern.domain.models import CompressionConfig, CompressionType, OperationType
+from pywalpattern.service.wal.compression import CompressionManager
 
 
 class LogEntry:
@@ -86,4 +87,51 @@ class LogEntry:
         # Verify the checksum
         if entry.checksum != entry.calculate_checksum():
             raise ValueError("Checksum verification failed")
+        return entry
+
+
+class CompressedLogEntry(LogEntry):
+    def __init__(self, *args, compression_config: CompressionConfig | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.compression_config = compression_config or CompressionConfig(CompressionType.NONE)
+        self._compression_manager = CompressionManager(self.compression_config)
+        self.compression_type = CompressionType.NONE
+
+    def serialize(self) -> bytes:
+        """Serialize and compress entry"""
+        json_data = json.dumps(self.to_dict()).encode("utf-8")
+        compressed_data, compression_type = self._compression_manager.compress(json_data)
+        self.compression_type = compression_type
+
+        # Format: [compression_type(1 byte)][compressed_data]
+        return bytes([compression_type.value]) + compressed_data
+
+    @staticmethod
+    def deserialize(data: bytes) -> LogEntry:
+        """Deserialize and decompress entry"""
+        compression_type = CompressionType(data[0])
+        compressed_data = data[1:]
+
+        compression_manager = CompressionManager(CompressionConfig(compression_type))
+        decompressed_data = compression_manager.decompress(compressed_data, compression_type)
+
+        entry_dict = json.loads(decompressed_data.decode("utf-8"))
+        entry = CompressedLogEntry.from_dict(entry_dict)
+
+        if entry.checksum != entry.calculate_checksum():
+            raise ValueError("Checksum verification failed")
+        return entry
+
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data["compression_type"] = self.compression_type.value
+        return data
+
+    @staticmethod
+    def from_dict(data: dict) -> LogEntry:
+        compression_type = CompressionType(data.pop("compression_type", CompressionType.NONE.value))
+        entry = super(CompressedLogEntry, CompressedLogEntry).from_dict(data)
+        entry.compression_config = CompressionConfig(compression_type)
+        entry._compression_manager = CompressionManager(entry.compression_config)
+        entry.compression_type = compression_type
         return entry

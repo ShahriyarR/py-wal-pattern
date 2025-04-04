@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from pywalpattern.domain.models import OperationType
-from pywalpattern.service.wal.log_entry import LogEntry
+from pywalpattern.domain.models import CompressionConfig, CompressionType, OperationType
+from pywalpattern.service.wal.log_entry import CompressedLogEntry, LogEntry
 
 
 class WAL:
@@ -16,7 +16,7 @@ class WAL:
         seq_num (int): The current sequence number for log entries.
     """
 
-    def __init__(self, log_dir: str):
+    def __init__(self, log_dir: str, compression_config: CompressionConfig | None = None):
         """
         Initializes the WAL instance, creating the log directory if it doesn't exist,
         and opening the current log file for appending.
@@ -27,6 +27,7 @@ class WAL:
         self.log_dir = log_dir
         self.current_file = None
         self.seq_num = 0
+        self.compression_config = compression_config or CompressionConfig(CompressionType.ZLIB)
         Path(log_dir).mkdir(exist_ok=True, parents=True)
         self._init_from_disk()
         self._open_current_file()
@@ -65,7 +66,7 @@ class WAL:
             int: The sequence number of the appended log entry.
         """
         self.seq_num += 1
-        entry = LogEntry(self.seq_num, op_type, key, value)
+        entry = CompressedLogEntry(self.seq_num, op_type, key, value, compression_config=self.compression_config)
         serialized = entry.serialize()
 
         # Write entry length followed by the entry
@@ -99,7 +100,7 @@ class WAL:
                     if len(entry_data) != length:
                         break  # Corrupted or incomplete entry
 
-                    entry = LogEntry.deserialize(entry_data)
+                    entry = CompressedLogEntry.deserialize(entry_data)
                     entries.append(entry)
 
         return entries
