@@ -35,6 +35,7 @@ The project consists of the following main components:
 
 - Manages log files, appending new entries, reading all entries, and rotating log files based on size.
 - Ensures that all operations are logged before being applied to the key-value store.
+- Supports segmented logs for easier operations and management.
 
 ### KeyValueStore
 

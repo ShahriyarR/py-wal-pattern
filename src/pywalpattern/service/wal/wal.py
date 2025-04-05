@@ -14,19 +14,22 @@ class WAL:
         log_dir (str): The directory where log files are stored.
         current_file (file): The current log file being written to.
         seq_num (int): The current sequence number for log entries.
+        segment_size (int): The size threshold for rotating the log file.
     """
 
-    def __init__(self, log_dir: str, compression_config: CompressionConfig | None = None):
+    def __init__(self, log_dir: str, compression_config: CompressionConfig | None = None, segment_size: int = 10 * 1024 * 1024):
         """
         Initializes the WAL instance, creating the log directory if it doesn't exist,
         and opening the current log file for appending.
 
         Args:
             log_dir (str): The directory where log files are stored.
+            segment_size (int): The size threshold for rotating the log file (default is 10MB).
         """
         self.log_dir = log_dir
         self.current_file = None
         self.seq_num = 0
+        self.segment_size = segment_size
         self.compression_config = compression_config or CompressionConfig(CompressionType.ZLIB)
         Path(log_dir).mkdir(exist_ok=True, parents=True)
         self._init_from_disk()
@@ -76,7 +79,19 @@ class WAL:
         self.current_file.flush()
         os.fsync(self.current_file.fileno())  # Force write to disk
 
+        # Rotate log if it exceeds the segment size
+        if self.current_file.tell() > self.segment_size:
+            self._rotate_log()
+
         return self.seq_num
+
+    def _rotate_log(self):
+        """
+        Rotates the log file by closing the current file and opening a new one.
+        """
+        self.current_file.close()
+        self.seq_num += 1
+        self._open_current_file()
 
     def read_all_entries(self) -> list[LogEntry]:  # noqa: CCR001
         """
@@ -104,18 +119,6 @@ class WAL:
                     entries.append(entry)
 
         return entries
-
-    def rotate_log(self, threshold_size: int = 10 * 1024 * 1024):
-        """
-        Rotates the log file if it exceeds the threshold size.
-
-        Args:
-            threshold_size (int): The size threshold for rotating the log file (default is 10MB).
-        """
-        if self.current_file.tell() > threshold_size:
-            self.current_file.close()
-            self.seq_num += 1
-            self._open_current_file()
 
     def close(self):
         """

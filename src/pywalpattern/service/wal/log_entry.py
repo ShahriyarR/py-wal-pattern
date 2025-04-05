@@ -19,11 +19,20 @@ class LogEntry:
         timestamp (float): The timestamp when the log entry was created.
         checksum (int): The CRC checksum of the log entry.
         format_version (int): The format version of the log entry.
+        segment_num (int): The segment number of the log entry.
     """
 
     CURRENT_FORMAT_VERSION = 1
 
-    def __init__(self, seq_num: int, op_type: OperationType, key: str, value: Any = None, format_version: int = CURRENT_FORMAT_VERSION):
+    def __init__(
+        self,
+        seq_num: int,
+        op_type: OperationType,
+        key: str,
+        value: Any = None,
+        format_version: int = CURRENT_FORMAT_VERSION,
+        segment_num: int = 0,
+    ):
         """
         Constructs all the necessary attributes for the LogEntry object.
 
@@ -33,6 +42,7 @@ class LogEntry:
             key (str): The key associated with the log entry.
             value (Any, optional): The value associated with the log entry (default is None).
             format_version (int): The format version of the log entry (default is CURRENT_FORMAT_VERSION).
+            segment_num (int): The segment number of the log entry (default is 0).
         """
         self.seq_num = seq_num
         self.op_type = op_type
@@ -41,6 +51,7 @@ class LogEntry:
         self.timestamp = time.time()
         self.checksum = self.calculate_checksum()
         self.format_version = format_version
+        self.segment_num = segment_num
 
     def calculate_checksum(self) -> int:
         """Calculate the CRC checksum of the log entry."""
@@ -57,6 +68,7 @@ class LogEntry:
             "timestamp": self.timestamp,
             "checksum": self.checksum,
             "format_version": self.format_version,
+            "segment_num": self.segment_num,
         }
 
     @staticmethod
@@ -73,6 +85,7 @@ class LogEntry:
         )
         entry.timestamp = data["timestamp"]
         entry.checksum = data.get("checksum", entry.calculate_checksum())  # Use default if missing
+        entry.segment_num = data.get("segment_num", 0)
         return entry
 
     def serialize(self) -> bytes:
