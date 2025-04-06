@@ -36,17 +36,20 @@ The project consists of the following main components:
 - Manages log files, appending new entries, reading all entries, and rotating log files based on size.
 - Ensures that all operations are logged before being applied to the key-value store.
 - Supports segmented logs for easier operations and management.
+- **New**: Supports deleting old log segments based on a low-water mark.
 
 ### KeyValueStore
 
 - Provides methods to put, get, and delete key-value pairs.
 - Uses WAL to log operations before applying them to the in-memory store.
 - Supports recovery from WAL and creating checkpoints.
+- **New**: Updates the low-water mark after creating a snapshot and deletes old log segments.
 
 ### KVServer
 
 - Handles client connections and processes commands like GET, PUT, DELETE, KEYS, and CHECKPOINT.
 - Uses KeyValueStore to perform operations and ensure durability.
+- **New**: Runs a background task to periodically check and delete old log segments.
 
 ### KVClient
 
@@ -83,6 +86,7 @@ graph TD
 5. **WAL writes to disk**: The serialized log entry is written to the log file on disk.
 6. **KeyValueStore updates in-memory store**: After logging, the KeyValueStore updates the in-memory key-value store.
 7. **Recovery from WAL**: On startup, the KeyValueStore reads all entries from the WAL to rebuild the in-memory state.
+8. **Log cleanup**: The server periodically deletes old log segments based on the low-water mark.
 
 ## Current limitations & future improvements
 

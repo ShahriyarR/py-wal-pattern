@@ -120,6 +120,32 @@ class WAL:
 
         return entries
 
+    def _is_snapshot_fresh(self, snapshot_seq_num: int) -> bool:
+        """
+        Check if the snapshot is fresh by comparing the sequence number in the snapshot
+        with the current WAL sequence number.
+        """
+        return snapshot_seq_num == self.seq_num
+
+    def delete_old_segments(self, low_water_mark: int, snapshot_seq_num: int):
+        """
+        Delete log segments with sequence numbers lower than the low-water mark,
+        ensuring that the snapshot is fresh before performing the cleanup.
+
+        Args:
+            low_water_mark (int): The sequence number before which log segments can be safely deleted.
+            snapshot_seq_num (int): The sequence number in the snapshot to verify freshness.
+        """
+        if not self._is_snapshot_fresh(snapshot_seq_num):
+            print("Snapshot is not fresh. Skipping log cleanup.")
+            return
+
+        log_files = sorted([f for f in os.listdir(self.log_dir) if f.endswith(".log")])
+        for log_file in log_files:
+            seq_num = int(log_file.split(".")[0])
+            if seq_num < low_water_mark:
+                os.remove(os.path.join(self.log_dir, log_file))
+
     def close(self):
         """
         Closes the current log file.

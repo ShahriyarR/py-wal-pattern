@@ -2,6 +2,7 @@ import contextlib
 import json
 import socket
 import threading
+import time
 from typing import Any
 
 from pywalpattern.domain.models import Command, Response
@@ -47,6 +48,11 @@ class KVServer:
         self.server_socket.listen(5)
         self.running = True
         print(f"Server started on {self.host}:{self.port}")
+
+        # Start background task for log cleanup
+        cleanup_thread = threading.Thread(target=self._log_cleanup_task)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
 
         try:
             while self.running:
@@ -191,3 +197,14 @@ class KVServer:
 
         else:
             return {"status": Response.ERROR, "message": f"Unknown command: {command}"}
+
+    def _log_cleanup_task(self):
+        """
+        Background task to periodically check and delete old log segments.
+        """
+        while self.running:
+            with self.store.lock:
+                low_water_mark = self.store.low_water_mark  # Use low-water mark set by checkpoint
+                snapshot_seq_num = self.store.get_snapshot_seq_num()  # Get the snapshot sequence number
+                self.store.wal.delete_old_segments(low_water_mark, snapshot_seq_num)
+            time.sleep(60)  # Run every 60 seconds
