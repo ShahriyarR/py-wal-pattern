@@ -5,6 +5,9 @@ import threading
 import time
 from typing import Any
 
+import requests
+from flask import Flask, jsonify, request
+
 from pywalpattern.domain.models import Command, Response
 from pywalpattern.service.wal.storage import KeyValueStore
 
@@ -22,7 +25,7 @@ class KVServer:
         clients (list): A list of active client connections.
     """
 
-    def __init__(self, host: str, port: int, data_dir: str):
+    def __init__(self, host: str, port: int, data_dir: str, is_leader: bool = False):
         """
         Initializes the KVServer with the specified host, port, and data directory.
 
@@ -37,6 +40,38 @@ class KVServer:
         self.server_socket = None
         self.running = False
         self.clients = []  # Track active client connections
+        self.is_leader = is_leader
+        self.followers = []
+        self.flask_app = Flask(__name__)
+        self._setup_routes()
+
+    def _setup_routes(self):
+        @self.flask_app.route("/replicate", methods=["POST"])
+        def replicate():
+            if not self.is_leader:
+                return jsonify({"error": "Only leader can replicate"}), 403
+            command_data = request.json
+            response = self.process_command(command_data)
+            return jsonify(response)
+
+        @self.flask_app.route("/register_follower", methods=["POST"])
+        def register_follower():
+            follower_address = request.json.get("address")
+            if follower_address not in self.followers:
+                self.followers.append(follower_address)
+            return jsonify({"status": "Follower registered"})
+
+    def start_flask(self):
+        self.flask_app.run(host=self.host, port=self.port + 1)
+
+    def replicate_to_followers(self, command_data: dict[str, Any]):
+        for follower in self.followers:
+            try:
+                response = requests.post(f"http://{follower}/replicate", json=command_data, timeout=10)
+                if response.status_code != 200:
+                    print(f"Failed to replicate to {follower}")
+            except Exception as e:
+                print(f"Error replicating to {follower}: {e}")
 
     def start(self):
         """
@@ -53,6 +88,11 @@ class KVServer:
         cleanup_thread = threading.Thread(target=self._log_cleanup_task)
         cleanup_thread.daemon = True
         cleanup_thread.start()
+
+        if self.is_leader:
+            flask_thread = threading.Thread(target=self.start_flask)
+            flask_thread.daemon = True
+            flask_thread.start()
 
         try:
             while self.running:
@@ -174,12 +214,16 @@ class KVServer:
             key = command_data.get("key")
             value = command_data.get("value")
             self.store.put(key, value)
+            if self.is_leader:
+                self.replicate_to_followers(command_data)
             return {"status": Response.OK}
 
         elif command == Command.DELETE:
             key = command_data.get("key")
             success = self.store.delete(key)
             if success:
+                if self.is_leader:
+                    self.replicate_to_followers(command_data)
                 return {"status": Response.OK}
             else:
                 return {"status": Response.ERROR, "message": f"Key: {key} not found"}

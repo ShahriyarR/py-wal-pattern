@@ -2,6 +2,8 @@ import json
 import socket
 from typing import Any
 
+import requests
+
 from pywalpattern.domain.models import Command, Response
 
 
@@ -164,3 +166,20 @@ class KVClient:
         """
         response = self.send_command(Command.CHECKPOINT)
         return response["status"] == Response.OK
+
+    def register_as_follower(self, leader_address: str) -> bool:
+        """
+        Register this client as a follower to the leader.
+
+        Args:
+            leader_address (str): The address of the leader server.
+
+        Returns:
+            bool: True if registration was successful, False otherwise.
+        """
+        try:
+            response = requests.post(f"http://{leader_address}/register_follower", json={"address": f"{self.host}:{self.port}"}, timeout=10)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Error registering as follower: {e}")
+            return False

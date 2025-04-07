@@ -1,6 +1,8 @@
 import argparse
 import json
 
+import requests
+
 from pywalpattern.service.server.client import KVClient
 from pywalpattern.service.server.server import KVServer
 
@@ -10,10 +12,15 @@ def run_server():
     parser.add_argument("--host", default="localhost", help="Host to bind to")
     parser.add_argument("--port", type=int, default=9090, help="Port to bind to")
     parser.add_argument("--data-dir", default="./data", help="Directory for data storage")
+    parser.add_argument("--is-leader", action="store_true", help="Run as leader")
+    parser.add_argument("--leader-address", help="Leader address for follower registration")
 
     args = parser.parse_args()
 
-    server = KVServer(args.host, args.port, args.data_dir)
+    server = KVServer(args.host, args.port, args.data_dir, args.is_leader)
+    if not args.is_leader and args.leader_address:
+        requests.post(f"http://{args.leader_address}/register_follower", json={"address": f"{args.host}:{args.port + 1}"}, timeout=10)
+
     try:
         server.start()
     except KeyboardInterrupt:
